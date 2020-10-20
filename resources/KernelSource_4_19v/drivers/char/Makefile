@@ -60,4 +60,4 @@ obj-$(CONFIG_POWERNV_OP_PANEL)	+= powernv-op-panel.o
 obj-$(CONFIG_ADI)		+= adi.o
 
 
-obj-y += SJDriver
+obj-y += SJDriver/

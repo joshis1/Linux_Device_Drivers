@@ -5,7 +5,8 @@
 /** Called when the module is inserted -insmod **/
 static int __init helloWorld_init(void)
 {
-   for(int i = 0; i <=10; i++)
+   int i = 0;
+   for(i = 0; i <=10; i++)
       {
          pr_info("SJ--In-tree - Hello World\r\n");
       }
@@ -23,7 +24,7 @@ static void __exit helloWorld_cleanup(void)
 module_init(helloWorld_init);
 module_exit(helloWorld_cleanup);
 
-#MODULE_LICENSE("GPLv2"); //GPL - check module.h - very important 
+MODULE_LICENSE("GPLv2"); //GPL - check module.h - very important 
 MODULE_AUTHOR("Shreyas Joshi");
 MODULE_DESCRIPTION("Hello World Program");
 MODULE_INFO(board, "Zedboard - AVNET");
