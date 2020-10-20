@@ -1,0 +1,5 @@
+menu "SJ-Custom Modules"
+  config CUSTOM_HELLOWORLD
+  tristate "hello world module support"
+  default m
+endmenu

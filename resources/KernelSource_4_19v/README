@@ -1,12 +1,101 @@
 Linux kernel
 ============
 
+MD File Editor
+============
+Install Remarkable editor to edit the Markdown file.
+
+Environment Setup:
+=================
+* sudo apt-get install gcc-arm*
+* sudo apt-get install u-boot-tools
+* export CROSS_COMPILE=arm-linux-gnueabihf-
+* export ARCH=arm
+
 Compilation steps
 =================
 make clean 
 make kush_zinc_defconfig
 make -j4 zImage kush-zinc.dtb
-=============================
+
+How to compile uImage?
+=================
+
+	$make -j4 uImage kush-zinc.dtb LOADADDR=0x0008000 
+ 	CALL    scripts/checksyscalls.sh
+ 	CHK     include/generated/compile.h
+	Kernel: arch/arm/boot/Image is ready
+	Kernel: arch/arm/boot/zImage is ready
+	UIMAGE  arch/arm/boot/uImage
+	Image Name:   Linux-4.19.0-xilinx
+	Created:      Mon Oct 19 18:08:26 2020
+	Image Type:   ARM Linux Kernel Image (uncompressed)
+	Data Size:    4155128 Bytes = 4057.74 kB = 3.96 MB
+	Load Address: 00008000
+	Entry Point:  00008000
+  	Kernel: arch/arm/boot/uImage is ready
+  	
+How to do clean?
+=================
+	 $make ARCH=arm distclean
+	 
+How to build menuconfig?
+=================
+* check for the defconfig file - ./arch/arm/configs/kush_zinc_defconfig
+
+		make ARCH=arm kush_zinc_defconfig
+		make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+		
+		
+How to build kernel Image?
+=================
+  	make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- uImage dtbs LOADADDR=0x0008000 -j4 
+  	
+  	
+ How to build kernel modules?
+=================
+	make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- modules 
+	
+ How to install kernel modules?
+=================	
+	sudo make ARCH=arm modules_install
+
+	$ls -l /lib/modules/
+	drwxr-xr-x 3 root root 4096 Oct 19 18:31 4.19.0-xilinx
+	
+Build Artefacts?
+=================	
+	$cp arch/arm/boot/uImage  /<sd_card>
+	$cp -a /lib/modules/4.19.0-xilinx/  <sd_card>/lib/modules/  
+	
+Connecting Internet to the Embedded Device?
+=================	
+On the Embedded device - 
+
+	$vi /etc/resolv.conf 
+	nameserver 8.8.8.8 
+	nameserver 8.8.4.4 
+
+[note] - Add gateway telling where to route if not found any route.
+Here 11.11.11.24 is the  PC - ethernet interface IP address connected to it.
+
+	$route add default gw 11.11.11.24 
+
+Now, In the host machine i.e. PC allow the routing.
+	$sudo sysctl -w net.ipv4.ip_forward=1
+	$cat /proc/sys/net/ipv4/ip_forward
+
+Modify IP tables in the host machine so that the packets from 
+embedded devices can go and come back to it. 
+In my case, eth0 is the interface connected to the external world.
+
+	$sudo iptables --table nat --append POSTROUTING --out-interface eth0 -j MASQUERADE
+	
+In my case, eth1 is the interface connected to the embedded device.
+	
+	$sudo iptables --append FORWARD --in-interface eth1 -j ACCEPT
+
+
 
 There are several guides for kernel developers and users. These guides can
 be rendered in a number of formats, like HTML and PDF. Please read
@@ -16,6 +105,12 @@ In order to build the documentation, use ``make htmldocs`` or
 ``make pdfdocs``.  The formatted documentation can also be read online at:
 
     https://www.kernel.org/doc/html/latest/
+    
+    
+   References - 
+   
+   [https://www.kernel.org/doc/Documentation/kbuild/modules.txt](https://www.kernel.org/doc/Documentation/kbuild/modules.txt) 
+   
 
 There are various text files in the Documentation/ subdirectory,
 several of them using the Restructured Text markup notation.
