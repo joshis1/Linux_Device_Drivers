@@ -46,3 +46,31 @@ $bitbake hello-mod
 or  
 $bitbake -s | grep -i phy  
 
+**Compiling DTBO in this tree **
+
+	$DTC_FLAGS="-@" make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- dtbs
+	$dtc -o dtb -o phyDriver.dtbo -@ ./phyDriver.dts
+	
+**How to install this driver in the target?**
+
+	$insmod phyDriver.ko
+	$mkdir -p /sys/kernel/config/device-tree/overlays/phyDriver
+	$cat /home/root/phyDriver.dtbo  > /sys/kernel/config/device-tree/overlays/phyDriver/dtbo
+	
+**How to install remarkable?**
+
+	$sudo apt install python3-markdown wkhtmltopdf
+	$sudo apt --fix-broken install
+	$sudo dpkg -i /media/sf_Documents/remarkable_1.87_all.deb 
+
+**How to scp from Windows to Embedded Device?**
+
+	$pscp -scp .\main.ko root@192.168.55.2:
+	
+**Windows Firewall - Ping Issue?**
+
+Ok so I had the same problem with trying to ping from beagle bone black rev C to my windows 8 laptop. Now I could ping from windows 8 but not vice-versa. So what I found out is that Windows 8 by default has a rule enabled to block all incoming ICMP packets. So what you need to do is go to
+Windows Firewall -> Advanced Settings -> Inbound Rules and enable File and Printer Sharing (Echo Request....
+
+[https://groups.google.com/g/beagleboard/c/ebeg39wLUcw?pli=1](https://groups.google.com/g/beagleboard/c/ebeg39wLUcw?pli=1) 
+
