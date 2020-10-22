@@ -65,6 +65,8 @@ $bitbake -s | grep -i phy
 
 **How to scp from Windows to Embedded Device?**
 
+       Using Windows PowerShell
+
 	$pscp -scp .\main.ko root@192.168.55.2:
 	
 **Windows Firewall - Ping Issue?**
