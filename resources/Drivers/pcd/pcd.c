@@ -2,6 +2,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/uaccess.h> /** for copy_to_user and copy_from_user **/
 
 dev_t device_number;
 struct cdev pcd_cdev;
@@ -14,6 +15,9 @@ ssize_t pcd_read(struct file *filp, char __user *buff, size_t count, loff_t *f_p
 ssize_t pcd_write(struct file *filp, const char __user *buff, size_t count, loff_t *f_pos);
 int pcd_open(struct inode *inode, struct file *filp);
 int pcd_release(struct inode *inode, struct file *flip);
+
+#define DEV_SIZE  (256)
+char kernBuff[DEV_SIZE] = "Hello World";
 
 
 /**Trick to get the function name **/
@@ -76,19 +80,67 @@ static void __exit pcd_driver_cleanup(void)
 
 loff_t pcd_lseek(struct file *filp, loff_t offset, int whence)
 {
-  pr_info("lseek was invoked count = %zu\n",offset);
+  pr_info("lseek was invoked count = %llu\n",offset);
   return 0;
 }
 
 ssize_t pcd_read(struct file *filp, char __user *buff, size_t count, loff_t *f_pos)
 {
+  loff_t temp;
   pr_info("read was invoked count = %zu\n",count);
+  pr_info("Fpos = %llu \n", *f_pos);
+
+  temp = count + (*f_pos);
+   
+   if( temp > (DEV_SIZE - *(f_pos)))
+   {
+      pr_info("Copying the data -- count is more than required\n");	
+      count = DEV_SIZE - *f_pos;   
+      if(copy_to_user(buff, &kernBuff[*f_pos], count) < 0) {
+        return -EINVAL;
+      }
+      *f_pos = DEV_SIZE;
+      pr_info("New f_pos = %llu and bytes written = %zu\n",*f_pos, count);
+      return count;
+   }
+   
+   else
+    {
+       pr_info("Copy the remaining data\n");	    
+       if(copy_to_user(buff, &kernBuff[*f_pos], count) < 0) {
+         return -EINVAL;
+       }
+       *f_pos +=count;
+       pr_info("New f_pos = %llu\n",*f_pos);
+       return count;
+    }
+  
   return 0;
 }
 
 ssize_t pcd_write(struct file *filp, const char __user *buff, size_t count, loff_t *f_pos)
 {
+  loff_t temp;
   pr_info("write was invoked count = %zu\n",count);
+
+
+  temp = count + (*f_pos);
+
+   
+  if( temp > (DEV_SIZE - *(f_pos)))
+   {
+      pr_info("Writing the data --over flow\n");
+      return -EINVAL;  // check out of memory error code.
+   }
+   
+   else
+    {
+       pr_info("Write the remaining data\n");	    
+       copy_from_user(&kernBuff[*f_pos], buff, count);
+       *f_pos +=count;
+       return count;
+    }
+  
   return 0;
 }
 
@@ -114,4 +166,4 @@ MODULE_DESCRIPTION("Hello World Program");
 MODULE_INFO(board, "Zedboard - AVNET");
 
 
-
+MODULE_DESCRIPTION("Hello World Program");
