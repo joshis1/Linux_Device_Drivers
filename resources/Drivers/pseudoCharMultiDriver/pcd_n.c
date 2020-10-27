@@ -48,8 +48,27 @@ struct pcdrv_private_data pcdrv_data =
 	   .serial_number = "PCDEV1XYZ123",
            .perm = 0x1, /*RDONLY */
 	 },
+   
+   [1] = {
+	   .buffer = device_buffer_pcdev2,
+	   .size = MEM_SIZE_MAX_PCDEV2,
+	   .serial_number = "PCDEV2XYZ123",
+	   .perm = 0x10, /*WRONLY*/
+	 },
 
+   [2] = {
+	   .buffer = device_buffer_pcdev3,
+	   .size = MEM_SIZE_MAX_PCDEV3,
+	   .serial_number = "PCDEV3XYZ123",
+           .perm = 0x11, /*RDWR*/
+	 },
 
+   [3] = {
+	   .buffer = device_buffer_pcdev4,
+	   .size = MEM_SIZE_MAX_PCDEV4,
+	   .serial_number = "PCDEV4XYZ123",
+	   .perm = 0x11, /*RDWR */
+	  },
   },
 
 };
@@ -84,72 +103,85 @@ struct file_operations pcd_fops =
 /** Called when the module is inserted -insmod **/
 static int __init pcd_driver_init(void)
 {
-#if 0
+   int i = 0;
    int ret;
    /** 1. Dynamically allocate a device number **/
-   ret = alloc_chrdev_region(&device_number,0,1, "pcd_devices");
+   ret = alloc_chrdev_region(&pcdrv_data.device_number, 0, NO_OF_DEVICES, "pcd_devices");
    if( ret < 0){
 	   pr_err("Alloc chrdev failed\n");
 	   goto out;
    }
 
-   pr_info("Device number <major>:<minor> = %d:%d\n", MAJOR(device_number), MINOR(device_number));
+   /*create device class under /sys/class */
+   pcdrv_data.class_pcd = class_create(THIS_MODULE, "pcd_class");
+   if(IS_ERR(pcdrv_data.class_pcd)) {
+	  pr_err("Error creating class\n");
+	  ret = PTR_ERR(pcdrv_data.class_pcd);
+	  goto cdev_del;
+   }  
+
+   
+   for( i = 0; i < NO_OF_DEVICES; i++){
+
+   pr_info("Device number <major>:<minor> = %d:%d\n", MAJOR(pcdrv_data.device_number + i), MINOR(pcdrv_data.device_number + i));
 
    /*Initialize the cdev structure with file operations*/
-   cdev_init(&pcd_cdev, &pcd_fops);
+   cdev_init(&pcdrv_data.pcdev_data[i].cdev_device, &pcd_fops);
 
    /*Register a device ( cdev stucture) with VFS */ 
-   pcd_cdev.owner = THIS_MODULE;
-   ret= cdev_add(&pcd_cdev, device_number, 1);
+   pcdrv_data.pcdev_data[i].cdev_device.owner = THIS_MODULE;
+   ret= cdev_add(&pcdrv_data.pcdev_data[i].cdev_device, pcdrv_data.device_number + i, 1);
    if(ret < 0){
           pr_err("Cdev add failed\n");
 	  goto unreg_chrdev;
    }
-   /*create device class under /sys/class */
-   class_pcd = class_create(THIS_MODULE, "pcd_class");
-   if(IS_ERR(class_pcd)) {
-	  pr_err("Error creating class\n");
-	  ret = PTR_ERR(class_pcd);
-	  goto cdev_del;
-   }  
+   
   
    /*populate the sysfs with device information */
-   device_pcd = device_create(class_pcd, NULL, device_number, NULL, "pcd");
+   pcdrv_data.device_pcd = device_create(pcdrv_data.class_pcd, NULL, pcdrv_data.device_number + i, NULL, "pcd-%d",i+1);
    /** IS_ERR(), PTR_ERR() and ERR_PTR() defined in /linux/err.h **/
    /** PTR_ERR - > converts pointer to error number value **/
    /** ERR_PTR() -> converts the error number to the pointer**/
-   if(IS_ERR(device_pcd)) {
+   if(IS_ERR(pcdrv_data.device_pcd)) {
 	   pr_err("Device Create failed\n");
-	   ret = PTR_ERR(device_pcd);
+	   ret = PTR_ERR(pcdrv_data.device_pcd);
 	   goto class_del;
     }
+ }
 
    pr_info("Module init was successful\n");
 
    return 0;
 
-class_del:
-   class_destroy(class_pcd);
+
+ 
 cdev_del:
-   cdev_del(&pcd_cdev); 
+   for(;i>=0;i--){
+   device_destroy(pcdrv_data.class_pcd, pcdrv_data.device_number + i);
+   cdev_del(&pcdrv_data.pcdev_data[i].cdev_device); 
+   }
+class_del:
+   class_destroy(pcdrv_data.class_pcd);
+
 unreg_chrdev:
-   unregister_chrdev_region(device_number, 1);
+   unregister_chrdev_region(pcdrv_data.device_number, NO_OF_DEVICES);
 out:
    pr_err("Module init failed\n");
    return ret;  
- #endif
 }
 
 /** Called when the module is removed - rmmod**/
 static void __exit pcd_driver_cleanup(void)
 {
-#if 0
-   device_destroy(class_pcd, device_number);
-   class_destroy(class_pcd);
-   cdev_del(&pcd_cdev);
-   unregister_chrdev_region(device_number, 1);
+   int i;
+   for(i = 0; i < NO_OF_DEVICES; i++) {
+       device_destroy(pcdrv_data.class_pcd, pcdrv_data.device_number + i);
+       cdev_del(&pcdrv_data.pcdev_data[i].cdev_device);
+   }
+
+   class_destroy(pcdrv_data.class_pcd);
+   unregister_chrdev_region(pcdrv_data.device_number, NO_OF_DEVICES);
    pr_info("module unloaded\n");
-#endif
 }
 
 loff_t pcd_lseek(struct file *filp, loff_t offset, int whence)
