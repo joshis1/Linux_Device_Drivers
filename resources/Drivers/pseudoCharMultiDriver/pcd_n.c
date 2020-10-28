@@ -6,6 +6,8 @@
 #include <linux/uaccess.h> 
 /** For IS_ERR(), PTR_ERR(), and ERR_PTR() **/
 #include <linux/err.h>
+/** container_of **/
+#include<linux/kernel.h>
 
 #define NO_OF_DEVICES        (4)
 #define MEM_SIZE_MAX_PCDEV1 (1024)
@@ -13,7 +15,14 @@
 #define MEM_SIZE_MAX_PCDEV3 (1024)
 #define MEM_SIZE_MAX_PCDEV4 (512)
 
-char device_buffer_pcdev1[MEM_SIZE_MAX_PCDEV1];
+
+#define RDONLY (0x1)
+#define WRONLY (0x10)
+#define RDWR   (0x11)
+
+
+
+char device_buffer_pcdev1[MEM_SIZE_MAX_PCDEV1] = "Testing PCDEV1 RDONLY\n";
 char device_buffer_pcdev2[MEM_SIZE_MAX_PCDEV2];
 char device_buffer_pcdev3[MEM_SIZE_MAX_PCDEV3];
 char device_buffer_pcdev4[MEM_SIZE_MAX_PCDEV4];
@@ -46,32 +55,36 @@ struct pcdrv_private_data pcdrv_data =
            .buffer =  device_buffer_pcdev1,
 	   .size = MEM_SIZE_MAX_PCDEV1,
 	   .serial_number = "PCDEV1XYZ123",
-           .perm = 0x1, /*RDONLY */
+           .perm = RDONLY,
 	 },
    
    [1] = {
 	   .buffer = device_buffer_pcdev2,
 	   .size = MEM_SIZE_MAX_PCDEV2,
 	   .serial_number = "PCDEV2XYZ123",
-	   .perm = 0x10, /*WRONLY*/
+	   .perm = WRONLY,
 	 },
 
    [2] = {
 	   .buffer = device_buffer_pcdev3,
 	   .size = MEM_SIZE_MAX_PCDEV3,
 	   .serial_number = "PCDEV3XYZ123",
-           .perm = 0x11, /*RDWR*/
+           .perm = RDWR,
 	 },
 
    [3] = {
 	   .buffer = device_buffer_pcdev4,
 	   .size = MEM_SIZE_MAX_PCDEV4,
 	   .serial_number = "PCDEV4XYZ123",
-	   .perm = 0x11, /*RDWR */
+	   .perm = RDWR,
 	  },
   },
 
 };
+
+
+/**private static prototypes**/
+static int check_permission(fmode_t mode, int perm);
 
 
 loff_t pcd_lseek(struct file *filp, loff_t offset, int whence);
@@ -79,9 +92,6 @@ ssize_t pcd_read(struct file *filp, char __user *buff, size_t count, loff_t *f_p
 ssize_t pcd_write(struct file *filp, const char __user *buff, size_t count, loff_t *f_pos);
 int pcd_open(struct inode *inode, struct file *filp);
 int pcd_release(struct inode *inode, struct file *flip);
-
-#define DEV_SIZE  (256)
-char device_memory[DEV_SIZE] = "Hello World \n";
 
 
 /**Trick to get the function name **/
@@ -186,60 +196,66 @@ static void __exit pcd_driver_cleanup(void)
 
 loff_t pcd_lseek(struct file *filp, loff_t offset, int whence)
 {
-#if 0
+  struct pcdev_private_data *pcdev_data;
   loff_t temp;
+
+  pcdev_data  = (struct pcdev_private_data *)filp->private_data;
   pr_info("lseek was invoked count = %llu and fpos = %lld\n",offset, filp->f_pos);
 
   switch(whence) {
      case SEEK_SET:
 	    temp = offset;
-            if((offset  > DEV_SIZE)  || (offset < 0)) {
+            if((offset  > pcdev_data->size)  || (offset < 0)) {
                return -EINVAL;
             }
+            pr_info("lseek --Whence= SEEK_SET and offset = %lld\n", offset);
             filp->f_pos = offset;       
 	    break; 
     case SEEK_CUR:
            temp = filp->f_pos + offset;
-           if( (temp > DEV_SIZE) || temp < 0) {
+           if( (temp > pcdev_data->size) || temp < 0) {
              return -EINVAL;
            }
+           pr_info("lseek --Whence= SEEK_CUR and offset = %lld\n", temp);
            filp->f_pos = temp;
 	   break;
     case SEEK_END:
-	   temp = offset + DEV_SIZE;
-	   if( (temp > DEV_SIZE) || temp < 0) {
+	   temp = offset + pcdev_data->size;
+	   if( (temp > pcdev_data->size) || temp < 0) {
             return -EINVAL;
            }
+            pr_info("lseek --Whence= SEEK_END and offset = %lld\n", temp);
 	   filp->f_pos = temp;
 	  break; 
    }
 
   pr_info("New f_pos = %lld\n",filp->f_pos);
   return filp->f_pos;
- #endif 
-  return 0;
 }
 
 ssize_t pcd_read(struct file *filp, char __user *buff, size_t count, loff_t *f_pos)
 {
- #if 0
+  struct pcdev_private_data *pcdev_data;
   loff_t temp;
   int ret;
+
+  pcdev_data  = (struct pcdev_private_data *)filp->private_data;
+
   pr_info("read was invoked count = %zu and f_pos = %lld\n",count, *f_pos);
   pr_info("Fpos = %llu \n", *f_pos);
 
   temp = count + (*f_pos);
    
-   if( temp > (DEV_SIZE - *(f_pos)))
+   if( temp > (pcdev_data->size - *(f_pos)))
    {
       pr_info("Copying the data -- count is more than required\n");	
-      count = DEV_SIZE - *f_pos;   
-      ret = copy_to_user(buff, &device_memory[*f_pos], count);
+      count = pcdev_data->size - *f_pos;   
+      ret = copy_to_user(buff, pcdev_data->buffer + *f_pos, count);
       if( ret  < 0) {
 	pr_err("Copy to user failed = %d\r\n",ret);      
         return -EFAULT;
       }
-      *f_pos = DEV_SIZE;
+      *f_pos = pcdev_data->size;
       pr_info("New f_pos = %llu and bytes written = %zu\n",*f_pos, count);
       return count;
    }
@@ -247,7 +263,7 @@ ssize_t pcd_read(struct file *filp, char __user *buff, size_t count, loff_t *f_p
    else
     {
        pr_info("Copy the remaining data\n");	    
-       ret = copy_to_user(buff, &device_memory[*f_pos], count);
+       ret = copy_to_user(buff, pcdev_data->buffer + *f_pos, count);
        if( ret < 0) {
 	 pr_err("Copy to user failed = %d\r\n",ret);      
          return -EFAULT;
@@ -256,27 +272,28 @@ ssize_t pcd_read(struct file *filp, char __user *buff, size_t count, loff_t *f_p
        pr_info("New f_pos = %llu\n",*f_pos);
        return count;
     }
- #endif
   return 0;
 }
 
 ssize_t pcd_write(struct file *filp, const char __user *buff, size_t count, loff_t *f_pos)
 {
-#if 0
+  struct pcdev_private_data *pcdev_data;
   loff_t temp;
   int ret;
+
+  pcdev_data  = (struct pcdev_private_data *)filp->private_data;
   pr_info("write was invoked count = %zu and f_pos = %lld\n",count,*f_pos);
 
   temp = count + (*f_pos);
    
-  if( temp > (DEV_SIZE - *(f_pos))) {
+  if( temp > (pcdev_data->size - *(f_pos))) {
       pr_info("Writing the data --over flow\n");
       return -ENOMEM;  /*check out of memory error code.*/
    }
    
    else {
        pr_info("Write the remaining data\n");	    
-       ret = copy_from_user(&device_memory[*f_pos], buff, count);
+       ret = copy_from_user(pcdev_data->buffer + *f_pos, buff, count);
        if(ret < 0) {
 	pr_err("Copy from user failed = %d\r\n", ret);       
         return -EFAULT;
@@ -288,20 +305,54 @@ ssize_t pcd_write(struct file *filp, const char __user *buff, size_t count, loff
     }
 
   pr_info("Updated f_pos = %lld\n", *f_pos);
-#endif 
+
   return 0;
 }
 
 int pcd_open(struct inode *inode, struct file *filp)
 {
+  int minor_n;
+  int ret;
+  struct pcdev_private_data *pcdev_data;	
   pr_info("open was invoked\n");
-  return 0;
+
+  minor_n = MINOR(inode->i_rdev);
+  pr_info("minor access = %d\n", minor_n); 
+   
+  /*get device's private data structure*/
+  pcdev_data = container_of(inode->i_cdev, struct pcdev_private_data, cdev_device);
+  filp->private_data = pcdev_data;
+
+  ret = check_permission(filp->f_mode, pcdev_data->perm);
+  (!ret) ? pr_info("Correct permission\n") : pr_err("Incorrect permission\n");
+   
+  return ret;
 }
 
 int pcd_release(struct inode *inode, struct file *flip)
 {
   pr_info("release was invoked\n");
   return 0;
+}
+
+
+static int check_permission(fmode_t mode, int perm)
+{
+   if(perm == RDWR) {
+      pr_info("Permission granted - RW\n");
+      return 0;
+   }
+   else if((perm == RDONLY) && (mode & FMODE_READ) && !(mode & FMODE_WRITE)) {
+       pr_info("Permission granted - RONLY\n");
+       return 0;
+   }
+   else if((perm == WRONLY) && (mode & FMODE_WRITE) && !(mode & FMODE_READ)) {
+       pr_info("Permission granted - WRONLY\n");
+       return 0;
+   }
+   else {
+        return -EPERM;
+    }
 }
 
 /**module registration **/
