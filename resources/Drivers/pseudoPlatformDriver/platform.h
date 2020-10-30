@@ -5,6 +5,19 @@ struct pcdev_platform_data {
 };
 
 
+enum pcdev_names
+{
+  PCDEVA1x = 0,
+  PCDEVB1x,
+  PCDEVC1x,
+  PCDEVD1x,
+};
+
+struct device_config {
+  int config_item1;
+  int config_item2;
+};
+
 #define RDWR   0x11
 #define RONLY  0x10
 #define WRONLY 0x01

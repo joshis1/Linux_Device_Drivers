@@ -13,6 +13,8 @@
 
 #include "platform.h"
 #include <linux/platform_device.h>
+/**platform_device_id - match based out of platform_device_id **/
+#include <linux/mod_devicetable.h>
 
 /**private static prototypes**/
 //static int check_permission(fmode_t mode, int perm);
@@ -60,6 +62,22 @@ struct file_operations pcd_fops =
 
 };
 
+struct platform_device_id pcdev_ids[] = {
+
+ [0] = {.name = "pcdev-A1x", .driver_data = 0},
+ [1] = {.name = "pcdev-B1x", .driver_data = PCDEVB1x},
+ [2] = {.name = "pcdev-C1x", .driver_data = PCDEVC1x},
+ {}, // NULL terminated
+};
+
+struct device_config pcdev_config[] = 
+{
+  [0] = {.config_item1 = 60, .config_item2 = 21},
+  [1] = {.config_item1 = 70, .config_item2 = 31},
+  [2] = {.config_item1 = 80, .config_item2 = 41},
+  [3] = {.config_item1 = 90, .config_item2 = 51},
+};
+
 int pcd_platform_driver_probe (struct platform_device *pDev)
 {
     struct pcdev_platform_data *pData;	
@@ -86,11 +104,13 @@ int pcd_platform_driver_probe (struct platform_device *pDev)
     pr_info("Device size = %d\n", dev_data->pData.size);
     pr_info("Device permission = %d\n", dev_data->pData.perm);
 
+    pr_info("config_item1 = %d and config_item2 = %d\r\n", pcdev_config[pDev->id_entry->driver_data].config_item1,pcdev_config[pDev->id_entry->driver_data].config_item2); 
+
     //dev_data->buffer = kzalloc(dev_data->pData.size, GFP_KERNEL);
     dev_data->buffer = devm_kzalloc(&(pDev->dev), dev_data->pData.size, GFP_KERNEL);
     if(!dev_data->buffer) {
        pr_err("Cannot allocate memory - buffer\n");
-       devm_kfree(&(pDev->dev),dev_data);
+       //devm_kfree(&(pDev->dev),dev_data);  //not required - since devm_kzalloc is managed resource.
        return -ENOMEM;
     }
 
@@ -138,6 +158,7 @@ int pcd_platform_driver_remove(struct platform_device *pDev)
 struct platform_driver pcd_platform_driver = {
 	.probe =  pcd_platform_driver_probe,
 	.remove = pcd_platform_driver_remove,
+        .id_table = pcdev_ids, /**based on ids so .name will be ignored **/
 	.driver = {
           .name =  "pseudo-char-device",
 	},	
