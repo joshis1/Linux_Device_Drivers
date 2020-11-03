@@ -5,6 +5,7 @@
  */
 /dts-v1/;
 /include/ "kush-7000.dtsi"
+/include/ "kush-zinc-ldd.dtsi"
 
 / {
 	model = "Avnet MicroZed board";
