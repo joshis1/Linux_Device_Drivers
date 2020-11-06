@@ -15,6 +15,8 @@
 #include <linux/platform_device.h>
 /**platform_device_id - match based out of platform_device_id **/
 #include <linux/mod_devicetable.h>
+#include <linux/of_device.h>
+
 
 /**private static prototypes**/
 //static int check_permission(fmode_t mode, int perm);
@@ -80,17 +82,58 @@ struct device_config pcdev_config[] =
   [3] = {.config_item1 = 90, .config_item2 = 51},
 };
 
+struct pcdev_platform_data *pcdev_get_platform_from_dt(struct device *dev)
+{
+   struct device_node *dev_node = dev->of_node;
+   struct pcdev_platform_data *pData;
+
+   pData = devm_kzalloc(dev,sizeof(struct pcdev_private_data), GFP_KERNEL);
+   if( !pData) {
+     dev_err(dev, "Error allocating memory\r\n");
+     return ERR_PTR(-ENOMEM);
+   }
+   if(of_property_read_string(dev_node, "org,device-serial-num", &pData->serial_number)) {
+     dev_err(dev, "Error reading device-serial-num \r\n");
+     return ERR_PTR(-EINVAL);
+   }
+  if(of_property_read_u32(dev_node,"org,size", &pData->size)) {
+     dev_err(dev, "Error reading device size \r\n");
+     return ERR_PTR(-EINVAL);
+   }
+ 
+  if(of_property_read_u32(dev_node,"org,perm", &pData->perm)) {
+     dev_err(dev, "Error reading device perm \r\n");
+     return ERR_PTR(-EINVAL);
+   }
+  
+  return pData; 
+}
+
 int pcd_platform_driver_probe (struct platform_device *pDev)
 {
-    //struct pcdev_platform_data *pData;	
-    //struct pcdev_private_data *dev_data;
+    struct pcdev_platform_data *pData;	
+    struct pcdev_private_data *dev_data;
+    const struct of_device_id *of_id;
+    int index = 0;
     int ret = 0;
 
     pr_info("pcd_platform_driver_probe\n");
 
-#if 0
-    pData = pDev->dev.platform_data;
+    pData =  pcdev_get_platform_from_dt(&(pDev->dev));
 
+    if(!pData){
+	pr_info("trying to get the platform data from the device\r\n");
+	pData = pDev->dev.platform_data;
+        if(!pData) {
+	  pr_err("No platform data available\r\n");
+	  return -1;
+        }
+        index = pDev->id_entry->driver_data;  
+    }
+    else{
+        of_id = of_match_device(pDev->dev.driver->of_match_table, &pDev->dev);
+        index = (int)of_id->data;
+    }
     //GFP stands for Get Free Page 
     //dev_data = kzalloc(sizeof(struct pcdev_private_data), GFP_KERNEL);
     dev_data = devm_kzalloc(&(pDev->dev),sizeof(struct pcdev_private_data), GFP_KERNEL);
@@ -108,7 +151,7 @@ int pcd_platform_driver_probe (struct platform_device *pDev)
     pr_info("Device size = %d\n", dev_data->pData.size);
     pr_info("Device permission = %d\n", dev_data->pData.perm);
 
-    pr_info("config_item1 = %d and config_item2 = %d\r\n", pcdev_config[pDev->id_entry->driver_data].config_item1,pcdev_config[pDev->id_entry->driver_data].config_item2); 
+    pr_info("config_item1 = %d and config_item2 = %d\r\n", pcdev_config[index].config_item1,pcdev_config[index].config_item2); 
 
     //dev_data->buffer = kzalloc(dev_data->pData.size, GFP_KERNEL);
     dev_data->buffer = devm_kzalloc(&(pDev->dev), dev_data->pData.size, GFP_KERNEL);
@@ -118,9 +161,8 @@ int pcd_platform_driver_probe (struct platform_device *pDev)
        return -ENOMEM;
     }
 
-    dev_data->dev_num = pcdrv_data.device_num_base + pDev->id;
-    
-    cdev_init(&dev_data->cdev, &pcd_fops); 
+    dev_data->dev_num = pcdrv_data.device_num_base + pcdrv_data.total_devices;
+    cdev_init(&dev_data->cdev, &pcd_fops);
     
     dev_data->cdev.owner = THIS_MODULE;
     ret = cdev_add(&dev_data->cdev, dev_data->dev_num, 1); 
@@ -129,7 +171,7 @@ int pcd_platform_driver_probe (struct platform_device *pDev)
 	  return ret;
     }
 
-    pcdrv_data.device_pcd = device_create(pcdrv_data.class_pcd, NULL, dev_data->dev_num, NULL,"pcdev-%d", pDev->id);
+    pcdrv_data.device_pcd = device_create(pcdrv_data.class_pcd, NULL, dev_data->dev_num, NULL,"pcdev-%d",  pcdrv_data.total_devices);
 
     if(IS_ERR(pcdrv_data.device_pcd)) {
        pr_err("Device create failed\n");
@@ -144,22 +186,19 @@ int pcd_platform_driver_probe (struct platform_device *pDev)
 
 class_del:
    cdev_del(&dev_data->cdev);
-#endif 
+
    return ret;
 
 }
 
 int pcd_platform_driver_remove(struct platform_device *pDev)
 {
-   //struct pcdev_private_data *pPrivateData;
-
+   struct pcdev_private_data *pPrivateData;
    pr_info("pcd_platform_driver_remove\n");
-#if 0
    pPrivateData = (struct pcdev_private_data*)pDev->dev.driver_data;
    device_destroy(pcdrv_data.class_pcd, pPrivateData->dev_num);
    cdev_del(&pPrivateData->cdev);
    pcdrv_data.total_devices--;   
-#endif
    return 0;
 }
 
@@ -176,7 +215,6 @@ struct platform_driver pcd_platform_driver = {
 /** Called when the module is inserted -insmod **/
 static int __init pcd_platform_driver_init(void)
 {
-#if 0
    int ret;
    pr_info("pcd platform driver module insert\n");
    ret = alloc_chrdev_region(&pcdrv_data.device_num_base,0, MAX_DEVICES, "pcdevs");
@@ -192,7 +230,6 @@ static int __init pcd_platform_driver_init(void)
       unregister_chrdev_region(pcdrv_data.device_num_base,MAX_DEVICES);
       return ret;
     }
-#endif
    platform_driver_register(&pcd_platform_driver); 	
    return 0;  
 }
@@ -201,12 +238,9 @@ static int __init pcd_platform_driver_init(void)
 static void __exit pcd_platform_driver_cleanup(void)
 {
    pr_info("module unloaded\n");
-
    platform_driver_unregister(&pcd_platform_driver); 
-#if 0
    class_destroy(pcdrv_data.class_pcd);
    unregister_chrdev_region(pcdrv_data.device_num_base,MAX_DEVICES);
-#endif
 }
 
 loff_t pcd_lseek(struct file *filp, loff_t offset, int whence)
