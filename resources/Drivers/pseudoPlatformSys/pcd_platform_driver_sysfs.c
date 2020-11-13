@@ -40,6 +40,22 @@ struct platform_device_id pcdev_ids[] = {
         {}, // NULL terminated
 };
 
+
+static DEVICE_ATTR(max_size, S_IRUGO | S_IWUSR, show_max_size, store_max_size);
+static DEVICE_ATTR(serial_num, S_IRUGO, show_serial_num, NULL);
+
+struct attribute *pcd_attrs[] =
+{
+  &dev_attr_max_size.attr,
+  &dev_attr_serial_num.attr,
+  NULL
+};
+
+struct attribute_group pcd_attr_group =
+{
+    .attrs = pcd_attrs,
+};
+
 struct pcdev_platform_data *pcdev_get_platform_from_dt(struct device *dev) {
   struct device_node *dev_node = dev->of_node;
   struct pcdev_platform_data *pData;
@@ -71,26 +87,49 @@ struct pcdev_platform_data *pcdev_get_platform_from_dt(struct device *dev) {
   return pData;
 }
 
-static DEVICE_ATTR(max_size, S_IRUGO | S_IWUSR, show_max_size, store_max_size);
 
 int pcd_sysfs_create_files(struct device *device_pcd) {
+  #if 0
   int ret = 0;
   ret = sysfs_create_file(&device_pcd->kobj, &dev_attr_max_size.attr);
   if (ret < 0) {
     dev_err(device_pcd, "Error creating sys file - max size \r\n");
   }
+  ret = sysfs_create_file(&device_pcd->kobj, &dev_attr_serial_num.attr);
   return ret;
+  #endif
+  return sysfs_create_group(&device_pcd->kobj, &pcd_attr_group);
+  
 }
 
 ssize_t show_max_size(struct device *dev, struct device_attribute *attr,
                       char *buf) {
+  struct pcdev_private_data *dev_data = dev_get_drvdata(dev->parent);
 
-  return 0;
+  return sprintf(buf, "%d\n", dev_data->pData.size);
 }
 
 ssize_t store_max_size(struct device *dev, struct device_attribute *attr,
                        const char *buf, size_t count) {
-  return 0;
+  int ret;
+  long result;
+  struct pcdev_private_data *dev_data = dev_get_drvdata(dev->parent);
+
+  ret = kstrtol(buf,0, &result);
+  if(ret) 
+    return ret;
+  dev_data->pData.size = result;
+
+  dev_data->buffer = krealloc(dev_data->buffer,dev_data->pData.size, GFP_KERNEL);
+  return count;
+
+}
+
+ssize_t show_serial_num(struct device *dev, struct device_attribute *attr,
+                      char *buf) {
+  struct pcdev_private_data *dev_data = dev_get_drvdata(dev->parent);
+
+  return sprintf(buf, "%s\n", dev_data->pData.serial_number);
 }
 
 int pcd_platform_driver_probe(struct platform_device *pDev) {
@@ -202,8 +241,7 @@ struct platform_driver pcd_platform_driver = {
     .id_table = pcdev_ids, /**based on ids so .name will be ignored **/
     .driver =
         {
-            .name = "pseudo-char-device", 
-            .of_match_table = pcdev_dt_match,
+            .name = "pseudo-char-device", .of_match_table = pcdev_dt_match,
         },
 };
 
