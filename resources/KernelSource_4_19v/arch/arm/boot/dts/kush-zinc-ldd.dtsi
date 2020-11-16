@@ -26,6 +26,28 @@
         	org,device-serial-num = "PCDEVD1SJ";
 		org,perm = <0x11>;
 	};
+
+   gpio-devs
+   {
+      compatible = "org,bone-gpio-sysfs";
+
+	  gpio_1 {
+        label="gpio1.47"; 
+		bone-gpios=<&gpio0 47 1>;  /*usr led */
+	  };
+
+      gpio_2 {
+        label="gpio1.13";
+		bone-gpios = <&gpio0 13 1>;
+	  };
+
+	  gpio_3 {
+        label="gpio1.10";
+		bone-gpios=<&gpio0 10 1>;
+	  };
+
+   };
+
 };
      
         
