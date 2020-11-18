@@ -152,7 +152,7 @@ int gpio_sysfs_platform_driver_probe (struct platform_device *pDev)
       return -EINVAL;
    }
    dev_info(&dev, "child count = %d\r\n", gpiodrv_data.total_devices);
-   gpiodrv_data.dev_sysfs = devm_kzalloc(&dev, sizeof(struct device *) * gpiodrv_data.total_devices, GFP_KERNEL);
+   gpiodrv_data.dev_sysfs = devm_kzalloc(&pDev->dev, sizeof(struct device *) * gpiodrv_data.total_devices, GFP_KERNEL);
 
    for_each_available_child_of_node(parent, child)
    {
@@ -202,6 +202,8 @@ int gpio_sysfs_platform_driver_probe (struct platform_device *pDev)
 int gpio_sysfs_driver_remove(struct platform_device *pDev)
 { 
    int i = 0;
+   dev_info(&pDev->dev, "Removing gpio syfs driver\r\n");
+   
    for(i = 0; i < gpiodrv_data.total_devices; i++) {
       device_unregister(gpiodrv_data.dev_sysfs[i]);
    }
