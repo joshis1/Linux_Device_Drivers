@@ -33,6 +33,8 @@ struct gpiodrv_private_data
 {
    int total_devices;
    struct class *class_gpio;
+   struct device **dev_sysfs;
+
 };
 
 struct gpiodrv_private_data gpiodrv_data;
@@ -143,7 +145,14 @@ int gpio_sysfs_platform_driver_probe (struct platform_device *pDev)
    const char *name;
    int i = 0;
    int ret;
-   struct device *dev_sysfs;
+   
+   gpiodrv_data.total_devices = of_get_child_count(parent);
+   if(!gpiodrv_data.total_devices){
+      dev_err(&dev, "Error - No devices found\r\n");
+      return -EINVAL;
+   }
+   dev_info(&dev, "child count = %d\r\n", gpiodrv_data.total_devices);
+   gpiodrv_data.dev_sysfs = devm_kzalloc(&dev, sizeof(struct device *) * gpiodrv_data.total_devices, GFP_KERNEL);
 
    for_each_available_child_of_node(parent, child)
    {
@@ -163,7 +172,6 @@ int gpio_sysfs_platform_driver_probe (struct platform_device *pDev)
          strcpy(dev_data->label, name);
          dev_info(&dev,"GPIO label = %s\n",dev_data->label);
       }
-      i++;
       dev_data->desc = devm_fwnode_get_gpiod_from_child(&dev,"bone",&child->fwnode, GPIOD_ASIS, dev_data->label);
       if(IS_ERR(dev_data->desc)) {
          ret = PTR_ERR(dev_data->desc);
@@ -179,13 +187,13 @@ int gpio_sysfs_platform_driver_probe (struct platform_device *pDev)
          return ret;
       }
       
-      dev_sysfs = device_create_with_groups(gpiodrv_data.class_gpio, &dev, 0, dev_data, gpio_attr_groups, dev_data->label);
-      if(IS_ERR(dev_sysfs)) {
-         ret = PTR_ERR(dev_sysfs);
+      gpiodrv_data.dev_sysfs[i] = device_create_with_groups(gpiodrv_data.class_gpio, &dev, 0, dev_data, gpio_attr_groups, dev_data->label);
+      if(IS_ERR(gpiodrv_data.dev_sysfs[i])) {
+         ret = PTR_ERR(gpiodrv_data.dev_sysfs[i]);
          dev_err(&dev, "Error creating device with groups \r\n");
          return ret;
       }
-
+      i++;
    }
 
    return 0;
@@ -193,6 +201,10 @@ int gpio_sysfs_platform_driver_probe (struct platform_device *pDev)
 
 int gpio_sysfs_driver_remove(struct platform_device *pDev)
 { 
+   int i = 0;
+   for(i = 0; i < gpiodrv_data.total_devices; i++) {
+      device_unregister(gpiodrv_data.dev_sysfs[i]);
+   }
    return 0;
 }
 
