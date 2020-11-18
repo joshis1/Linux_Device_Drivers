@@ -51,27 +51,63 @@ struct of_device_id gpio_sysfs_dt_match[] = {
 
 ssize_t direction_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-   return 0;
+   int direction;
+   char *dir;
+   struct gpiodev_private_data *dev_data = dev_get_drvdata(dev);
+   direction = gpiod_get_direction(dev_data->desc);
+   if( direction < 0) {
+      pr_err("Failed reading gpiod - direction\r\n");
+      return direction;
+   }
+   dir = direction? "in" : "out";
+   return sprintf(buf,"%s\n",dir);
 }
 
 ssize_t direction_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-   return 0;
+   struct gpiodev_private_data *dev_data = dev_get_drvdata(dev);
+   if(sysfs_streq(buf,"in")) {
+      if(gpiod_direction_input(dev_data->desc)) {
+         pr_err("Failed to set the direction input \r\n");
+      }
+   }
+   else if(sysfs_streq(buf,"out")) {
+      if(gpiod_direction_output(dev_data->desc, 0)) {
+         pr_err("Failed to set the direction output\r\n");
+      }
+   }
+   else 
+   return -EINVAL;
+
+   return count;
 }
 
 ssize_t value_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-   return 0;
+   struct gpiodev_private_data *dev_data = dev_get_drvdata(dev);
+   int value = gpiod_get_value(dev_data->desc);
+   return sprintf(buf,"%d\n", value);
 }
 
 ssize_t value_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-   return 0;
+   struct gpiodev_private_data *dev_data = dev_get_drvdata(dev);
+   long val;
+   int ret;
+   ret = kstrtol(buf,0, &val);
+   if(ret)
+   {
+     pr_err("Incorrect value by the user\r\n");
+     return ret;
+   }
+   gpiod_set_value(dev_data->desc, val);
+   return count;
 }
 
 ssize_t label_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-   return 0;
+   struct gpiodev_private_data *dev_data = dev_get_drvdata(dev);
+   return sprintf(buf,"%s\n", dev_data->label);
 }
 
 static DEVICE_ATTR_RW(direction);
