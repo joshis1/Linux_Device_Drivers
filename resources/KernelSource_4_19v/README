@@ -106,6 +106,22 @@ In order to build the documentation, use ``make htmldocs`` or
 
     https://www.kernel.org/doc/html/latest/
     
+ Playing with zynq user Led - Red one using gpio sysfs
+=================	
+I have enabled kernel traces using kernel config.
+
+	/sys/kernel/debug/
+
+The way to copy changed menuconfig back to your config is simple. 
+	
+	make savedefconfig
+
+Copy this newly created defconfig to the arch/arm/configs/kush_zinc_defconfig in my case.
+
+I have added some pinctrl and GPIO controlled user Led in my DTSI file - 
+kush-zinc-ldd.dtsi.
+
+Also, note that some sort of fsbl configuration i.e. MUX MODE is required so that we can control the MIO47 GPIO pin i.e. user led. However, I don't have correct fsbl that's why I am using Microzed petalinux - boot.bin which has both fsbl and uboot. 
     
    References - 
    

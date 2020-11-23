@@ -49,7 +49,31 @@
    };
 
 };
-     
+
+&pinctrl0 {
+	  compatible = "xlnx,pinctrl-zynq";
+	  pinctrl-names = "default";
+	  pinctrl_gpio0_default: gpio0-default {
+      
+	  mux {
+
+		  function = "gpio0";
+		  groups = "gpio0_47_grp";
+	  };
+
+	  conf {
+          groups = "gpio0_47_grp";
+		  slew-rate = <0>;
+		  io-standard = <1>;
+	  };
+
+	  conf-pull-none{
+		  pins = "MIO47";
+		  bias-disable;
+	  };
+
+	};
+};
         
 
 
