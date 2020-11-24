@@ -104,6 +104,9 @@
 			#gpio-cells = <2>;
 			clocks = <&clkc 42>;
 			gpio-controller;
+			emio-gpio-width = <64>;
+			gpio-mask-high = <0xc0000>;
+			gpio-mask-low = <0xfe81>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupt-parent = <&intc>;

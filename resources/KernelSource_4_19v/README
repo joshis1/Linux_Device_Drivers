@@ -122,10 +122,28 @@ I have added some pinctrl and GPIO controlled user Led in my DTSI file -
 kush-zinc-ldd.dtsi.
 
 Also, note that some sort of fsbl configuration i.e. MUX MODE is required so that we can control the MIO47 GPIO pin i.e. user led. However, I don't have correct fsbl that's why I am using Microzed petalinux - boot.bin which has both fsbl and uboot. 
+
+[note] - Being able to control GPIO 47 means that the SLCR has properly muxed GPIO 47. Most likely this might have occurred in the FSBL via the ps7_init code. Less likely is that It might have been configured in u-boot or linux. The bitstream probably does not have to be loaded as GPIO 47 is one of the MIOs rather than EMIOs.
+
+	#enable GPIO clock
+	devmem 0xF800012C 32 0xD50445
+	#switch MIO 46, 47 to GPIO
+	devmem 0xF80007B8 32 0x1400
+	devmem 0xF80007BC 32 0x1400
     
    References - 
    
    [https://www.kernel.org/doc/Documentation/kbuild/modules.txt](https://www.kernel.org/doc/Documentation/kbuild/modules.txt) 
+   
+  [ https://forums.xilinx.com/t5/Embedded-Linux/Trying-to-run-gpio-demo-on-microzed-board/td-p/468972]( https://forums.xilinx.com/t5/Embedded-Linux/Trying-to-run-gpio-demo-on-microzed-board/td-p/468972) 
+  
+  [https://forums.xilinx.com/t5/Embedded-Linux/Setting-GPIO-values-PS-PL-EMIO-from-userspace-linux-don-t-work/td-p/940005
+](https://forums.xilinx.com/t5/Embedded-Linux/Setting-GPIO-values-PS-PL-EMIO-from-userspace-linux-don-t-work/td-p/940005
+)  
+
+
+  
+  
    
 
 There are various text files in the Documentation/ subdirectory,

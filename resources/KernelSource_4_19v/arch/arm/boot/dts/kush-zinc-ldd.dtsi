@@ -30,6 +30,8 @@
    gpio-devs
    {
       compatible = "org,bone-gpio-sysfs";
+	  pinctrl-names = "default";
+	  pinctrl-0=<&pinctrl_gpio0_default>;
 
 	  gpio_1 {
         label="gpio1.47"; 
