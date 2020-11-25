@@ -20,6 +20,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/of_device.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
 
 /**private static prototypes**/
 //static int check_permission(fmode_t mode, int perm);
@@ -31,6 +32,7 @@ struct pcdev_private_data
    char *buffer;
    dev_t dev_num;
    struct cdev cdev;
+   struct mutex pcdev_mutex_lock;
 };
 
 struct pcdrv_private_data

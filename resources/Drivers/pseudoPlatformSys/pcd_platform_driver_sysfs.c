@@ -40,19 +40,13 @@ struct platform_device_id pcdev_ids[] = {
         {}, // NULL terminated
 };
 
-
 static DEVICE_ATTR(max_size, S_IRUGO | S_IWUSR, show_max_size, store_max_size);
 static DEVICE_ATTR(serial_num, S_IRUGO, show_serial_num, NULL);
 
-struct attribute *pcd_attrs[] =
-{
-  &dev_attr_max_size.attr,
-  &dev_attr_serial_num.attr,
-  NULL
-};
+struct attribute *pcd_attrs[] = {&dev_attr_max_size.attr,
+                                 &dev_attr_serial_num.attr, NULL};
 
-struct attribute_group pcd_attr_group =
-{
+struct attribute_group pcd_attr_group = {
     .attrs = pcd_attrs,
 };
 
@@ -87,9 +81,8 @@ struct pcdev_platform_data *pcdev_get_platform_from_dt(struct device *dev) {
   return pData;
 }
 
-
 int pcd_sysfs_create_files(struct device *device_pcd) {
-  #if 0
+#if 0
   int ret = 0;
   ret = sysfs_create_file(&device_pcd->kobj, &dev_attr_max_size.attr);
   if (ret < 0) {
@@ -97,9 +90,8 @@ int pcd_sysfs_create_files(struct device *device_pcd) {
   }
   ret = sysfs_create_file(&device_pcd->kobj, &dev_attr_serial_num.attr);
   return ret;
-  #endif
+#endif
   return sysfs_create_group(&device_pcd->kobj, &pcd_attr_group);
-  
 }
 
 ssize_t show_max_size(struct device *dev, struct device_attribute *attr,
@@ -115,21 +107,37 @@ ssize_t store_max_size(struct device *dev, struct device_attribute *attr,
   long result;
   struct pcdev_private_data *dev_data = dev_get_drvdata(dev->parent);
 
-  ret = kstrtol(buf,0, &result);
-  if(ret) 
+  ret = mutex_lock_interruptible(&dev_data->pcdev_mutex_lock);
+  if(ret){
+    pr_err("Cannot get mutex\r\n");
     return ret;
+  }
+  ret = kstrtol(buf, 0, &result);
+  if (ret) {
+    mutex_unlock(&dev_data->pcdev_mutex_lock);
+    return ret;
+  }
   dev_data->pData.size = result;
 
-  dev_data->buffer = krealloc(dev_data->buffer,dev_data->pData.size, GFP_KERNEL);
-  return count;
+  dev_data->buffer =
+      krealloc(dev_data->buffer, dev_data->pData.size, GFP_KERNEL);
 
+  mutex_unlock(&dev_data->pcdev_mutex_lock);
+  return count;
 }
 
 ssize_t show_serial_num(struct device *dev, struct device_attribute *attr,
-                      char *buf) {
+                        char *buf) {
+  int ret;
   struct pcdev_private_data *dev_data = dev_get_drvdata(dev->parent);
-
-  return sprintf(buf, "%s\n", dev_data->pData.serial_number);
+  ret = mutex_lock_interruptible(&dev_data->pcdev_mutex_lock);
+  if(ret){
+    pr_err("Cannot get mutex\r\n");
+    return ret;
+  }
+  ret = sprintf(buf, "%s\n", dev_data->pData.serial_number);
+  mutex_unlock(&dev_data->pcdev_mutex_lock);
+  return ret;
 }
 
 int pcd_platform_driver_probe(struct platform_device *pDev) {
@@ -215,6 +223,7 @@ int pcd_platform_driver_probe(struct platform_device *pDev) {
     return ret;
   }
 
+  mutex_init(&dev_data->pcdev_mutex_lock);
   pr_info("Probe was successful\n");
 
   return 0;

@@ -26,6 +26,7 @@ struct pcdev_private_data {
   char *buffer;
   dev_t dev_num;
   struct cdev cdev;
+  struct mutex pcd_platform_mutex;
 };
 
 struct pcdrv_private_data {
@@ -137,6 +138,8 @@ int pcd_platform_driver_probe(struct platform_device *pDev) {
     goto class_del;
   }
   pcdrv_data.total_devices++;
+
+  mutex_init(&dev_data->pcd_platform_mutex);
 
   pr_info("Probe was successful\n");
 

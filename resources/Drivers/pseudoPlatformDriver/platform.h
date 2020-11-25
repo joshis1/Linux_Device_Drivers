@@ -1,9 +1,9 @@
-struct pcdev_platform_data {
- int size;
- int perm;
- const char *serial_number;
+struct pcdev_platform_data
+{
+  int size;
+  int perm;
+  const char *serial_number;
 };
-
 
 enum pcdev_names
 {
@@ -13,11 +13,12 @@ enum pcdev_names
   PCDEVD1x,
 };
 
-struct device_config {
+struct device_config
+{
   int config_item1;
   int config_item2;
 };
 
-#define RDWR   0x11
-#define RONLY  0x10
+#define RDWR 0x11
+#define RONLY 0x10
 #define WRONLY 0x01
